@@ -1,115 +1,250 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 
-void main() {
-  runApp(const MyApp());
+const sketchBox = 'sketchpadBox';
+
+void main() async {
+  await Hive.initFlutter();
+  Hive.registerAdapter(ColoredPathAdapter());
+  await Hive.openBox<ColoredPath>(sketchBox);
+  runApp(DrawApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
+class DrawApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: Scaffold(body: DrawingScreen()),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class ColoredPath {
+  static const colors = [
+    Colors.black,
+    Colors.red,
+    Colors.green,
+    Colors.blue,
+    Colors.amber,
+  ];
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  static List<Paint> _paints = [];
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+  Paint get paint {
+    if (_paints == null) {
+      _paints = [];
+      for (var color in colors) {
+        _paints.add(
+          Paint()
+            ..strokeCap = StrokeCap.round
+            ..isAntiAlias = true
+            ..color = color
+            ..strokeWidth = 3
+            ..style = PaintingStyle.stroke,
+        );
+      }
+    }
+    return _paints[colorIndex];
+  }
 
-  final String title;
+  final int colorIndex;
 
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  final path = Path();
+
+  List<Offset> points = [];
+
+  ColoredPath(this.colorIndex);
+
+  void addPoint(Offset point) {
+    if (points.isEmpty) {
+      path.moveTo(point.dx, point.dy);
+    } else {
+      path.lineTo(point.dx, point.dy);
+    }
+    points.add(point);
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class ColoredPathAdapter extends TypeAdapter<ColoredPath> {
+  @override
+  final typeId = 0;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  ColoredPath read(BinaryReader reader) {
+    var path = ColoredPath(reader.readByte());
+    var len = reader.readUint32();
+    for (var i = 0; i < len; i++) {
+      path.addPoint(Offset(reader.readDouble(), reader.readDouble()));
+    }
+    return path;
   }
 
   @override
+  void write(BinaryWriter writer, ColoredPath obj) {
+    writer.writeByte(obj.colorIndex);
+    writer.writeUint32(obj.points.length);
+    for (var point in obj.points) {
+      writer.writeDouble(point.dx);
+      writer.writeDouble(point.dy);
+    }
+  }
+}
+
+class DrawingScreen extends StatefulWidget {
+  @override
+  _DrawingScreenState createState() => _DrawingScreenState();
+}
+
+class _DrawingScreenState extends State<DrawingScreen> {
+  var selectedColorIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: Stack(
+            children: <Widget>[
+              ValueListenableBuilder(
+                valueListenable: Hive.box<ColoredPath>(sketchBox).listenable(),
+                builder: drawPathsFromBox,
+              ),
+              DrawingArea(selectedColorIndex),
+            ],
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            for (var i = 0; i < ColoredPath.colors.length; i++)
+              buildColorCircle(i),
+            ClearButton(),
+            UndoButton(),
           ],
         ),
+        SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget drawPathsFromBox(
+      BuildContext context, Box<ColoredPath> box, Widget? child) {
+    return Stack(
+      children: <Widget>[
+        for (var path in box.values)
+          CustomPaint(
+            size: Size.infinite,
+            painter: PathPainter(path),
+          ),
+      ],
+    );
+  }
+
+  Widget buildColorCircle(int colorIndex) {
+    var selected = selectedColorIndex == colorIndex;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedColorIndex = colorIndex;
+        });
+      },
+      child: ClipOval(
+        child: Container(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          height: selected ? 50 : 36,
+          width: selected ? 50 : 36,
+          color: ColoredPath.colors[colorIndex],
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+}
+
+class DrawingArea extends StatefulWidget {
+  final int selectedColorIndex;
+
+  DrawingArea(this.selectedColorIndex);
+
+  @override
+  _DrawingAreaState createState() => _DrawingAreaState();
+}
+
+class _DrawingAreaState extends State<DrawingArea> {
+  var path = ColoredPath(0);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onPanUpdate: (details) {
+        addPoint(details.globalPosition);
+      },
+      onPanStart: (details) {
+        path = ColoredPath(widget.selectedColorIndex);
+        addPoint(details.globalPosition);
+      },
+      onPanEnd: (details) {
+        Hive.box<ColoredPath>(sketchBox).add(path);
+        setState(() {
+          path = ColoredPath(0);
+        });
+      },
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: PathPainter(path),
+      ),
+    );
+  }
+
+  void addPoint(Offset point) {
+    var renderBox = context.findRenderObject() as RenderBox;
+    setState(() {
+      path.addPoint(renderBox.globalToLocal(point));
+    });
+  }
+}
+
+class PathPainter extends CustomPainter {
+  final ColoredPath path;
+
+  PathPainter(this.path);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(path.path, path.paint);
+  }
+
+  @override
+  bool shouldRepaint(PathPainter oldDelegate) => true;
+}
+
+class ClearButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<ColoredPath>(sketchBox).listenable(),
+      builder: (context, box, _) {
+        return IconButton(
+          icon: Icon(Icons.delete),
+          onPressed: box.length == 0 ? null : () => box.clear(),
+        );
+      },
+    );
+  }
+}
+
+class UndoButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<ColoredPath>(sketchBox).listenable(),
+      builder: (context, box, _) {
+        return IconButton(
+          icon: Icon(Icons.undo),
+          onPressed:
+              box.length == 0 ? null : () => box.deleteAt(box.length - 1),
+        );
+      },
     );
   }
 }
