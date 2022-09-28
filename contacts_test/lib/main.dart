@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:hive/hive.dart';
 
 const String contactsBoxName = "contacts";
 
@@ -43,9 +42,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Contacts App',
       home: Scaffold(
+        backgroundColor: Colors.grey[900],
         appBar: AppBar(
+          backgroundColor: Colors.green,
+          centerTitle: true,
           title: Text('Contacts App with Hive'),
         ),
         body: ValueListenableBuilder(
@@ -114,6 +117,7 @@ class MyApp extends StatelessWidget {
         floatingActionButton: Builder(
           builder: (context) {
             return FloatingActionButton(
+              backgroundColor: Colors.green,
               child: Icon(Icons.add),
               onPressed: () {
                 Navigator.of(context).push(
@@ -151,6 +155,7 @@ class _AddContactState extends State<AddContact> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[900],
       body: SafeArea(
         child: SingleChildScrollView(
           child: Form(
@@ -164,6 +169,7 @@ class _AddContactState extends State<AddContact> {
                     autofocus: true,
                     initialValue: "",
                     decoration: const InputDecoration(
+                      fillColor: Colors.green,
                       labelText: "Name",
                     ),
                     onChanged: (value) {

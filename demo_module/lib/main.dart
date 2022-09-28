@@ -34,12 +34,6 @@ class _MyHomePageState extends State<MyHomePage> {
   TextEditingController titleController = TextEditingController();
   TextEditingController descriptionController = TextEditingController();
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,50 +57,51 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           showDialog(
-              context: context,
-              builder: (ctxt) => Dialog(
-                  backgroundColor: Colors.blueGrey[100],
-                  child: Container(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        TextField(
-                          decoration: InputDecoration(hintText: "Title"),
-                          controller: titleController,
-                        ),
-                        SizedBox(
-                          height: 8,
-                        ),
-                        TextField(
-                          decoration: InputDecoration(hintText: "Description"),
-                          controller: descriptionController,
-                        ),
-                        SizedBox(
-                          height: 8,
-                        ),
-                        TextButton(
-                          child: Text(
-                            "Add Data",
-                            style: TextStyle(color: Colors.red),
-                          ),
-                          onPressed: () {
-                            final String title = titleController.text;
-                            final String description =
-                                descriptionController.text;
-                            titleController.clear();
-                            descriptionController.clear();
-                            DataModel data = DataModel(
-                                title: title,
-                                description: description,
-                                complete: false);
-                            // dataBox.add(data);
-                            Navigator.pop(context);
-                          },
-                        )
-                      ],
+            context: context,
+            builder: (ctxt) => Dialog(
+              backgroundColor: Colors.blueGrey[100],
+              child: Container(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    TextField(
+                      decoration: InputDecoration(hintText: "Title"),
+                      controller: titleController,
                     ),
-                  )));
+                    SizedBox(
+                      height: 8,
+                    ),
+                    TextField(
+                      decoration: InputDecoration(hintText: "Description"),
+                      controller: descriptionController,
+                    ),
+                    SizedBox(
+                      height: 8,
+                    ),
+                    TextButton(
+                      child: Text(
+                        "Add Data",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      onPressed: () {
+                        final String title = titleController.text;
+                        final String description = descriptionController.text;
+                        titleController.clear();
+                        descriptionController.clear();
+                        DataModel data = DataModel(
+                            title: title,
+                            description: description,
+                            complete: false);
+                        // dataBox.add(data);
+                        Navigator.pop(context);
+                      },
+                    )
+                  ],
+                ),
+              ),
+            ),
+          );
         },
         child: Icon(Icons.add),
       ),
